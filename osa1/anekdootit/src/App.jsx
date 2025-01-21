@@ -1,8 +1,19 @@
 import { useState } from 'react'
 
 const Button = ({onClick, text}) => (
-  <button onClick={onClick} >{text}</button>
+  <button onClick={onClick}> {text} </button>
 )
+
+const Header = ({header}) => <h1>{header}</h1>
+
+const Anecdote = ({style, anecdote, votes}) => {
+  return(
+    <>
+      <p style={style}>{anecdote}</p>
+      <p style={style}>has {votes} votes</p>
+    </>
+  )
+}
 
 const App = () => {
   const anecdotes = [
@@ -15,22 +26,49 @@ const App = () => {
     'Programming without an extremely heavy use of console.log is same as if a doctor would refuse to use x-rays or blood tests when dianosing patients.',
     'The only way to go fast, is to go well.'
   ]
-   
   const [selected, setSelected] = useState(0)
+  const [mostVoted, setMostVoted] = useState(0)
+  const [votes, setVotes] = useState(Array(anecdotes.length).fill(0))
   const textSize = {
     fontSize: "22px"
   }
+  
 
+  //Hoitaa next nappulan toiminnan
   const handleNext = () =>{
     let rndIndex = Math.floor(Math.random()* anecdotes.length)
     setSelected(rndIndex)
   }
 
+  //Hoitaa vote nappulan toiminnan
+  const handleVote = () => {
+    //Kopioidaan votes taulukko ja annetaan uusi tila kopiotaulukolla
+    const copy = [...votes]
+    copy[selected] += 1
+    setVotes(copy)
+
+    //Etsitään eniten ääniä saaneen anekdootin indeksi ja muutetaan tilaa
+    const bigI = MostVoted(copy)
+    setMostVoted(bigI)
+  }
+
+  //Käy läpi taulukon ja palauttaa isoimman luvun indeksin
+  const MostVoted = (t) => {
+      let maxIndex = 0
+      for(let i = 1; i < t.length; i++){
+        if(t[i] > t[maxIndex]) maxIndex = i
+      }
+      return maxIndex
+  }
 
   return (
     <div>
-      <p style={textSize}>{anecdotes[selected]}</p>
+      <Header header="Anecdote of the day" />
+      <Anecdote style={textSize} anecdote={anecdotes[selected]} votes={votes[selected]}/>
+      <Button onClick={handleVote} text="vote" />
       <Button onClick={handleNext} text="next anectode" />
+      <Header header="Anecdote with most votes" />
+      <Anecdote style={textSize} anecdote={anecdotes[mostVoted]} votes={votes[mostVoted]}/>
     </div>
   )
 }
