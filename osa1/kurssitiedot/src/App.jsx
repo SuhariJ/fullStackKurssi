@@ -28,7 +28,6 @@ const Content = (props) => {
   
   }
 
-  
   const Total = (props) => {
 
     return (
