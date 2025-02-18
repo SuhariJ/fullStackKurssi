@@ -87,11 +87,6 @@ const App = () => {
       }).catch( error => {
         console.log('Serveri pois päältä?: \n', error)
       })
-
-    /*setPersons(persons.concat(personObject))
-    setNewName('')
-    setNewNumber('040-')
-    */
   }
 
   return (
