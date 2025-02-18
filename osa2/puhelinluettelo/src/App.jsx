@@ -1,4 +1,5 @@
 import numberService from './services/numbersservices'
+import Notification from './components/Notification'
 import { useState, useEffect } from 'react'
 
 const Filter = ({value, onChange}) => (
@@ -43,6 +44,8 @@ const App = () => {
   const [newNumber, setNewNumber] = useState('+358 ')
   const [filter, setNewFilter] = useState('')
   const [showAll, setAll] = useState(true)
+  const [successMessage, setSuccessMessage] = useState(null)
+  const [errorMessage, setErrorMessage] = useState(null)
 
   //Ihmiset jotka näkyy Numbers otsikon alla
   const personsToShow = showAll
@@ -58,6 +61,7 @@ const App = () => {
     setAll(newValue == '')
   }
 
+  //Alustetaan henkilöt
   useEffect(() =>{
     numberService
     .getFromServer()
@@ -66,16 +70,19 @@ const App = () => {
     })
   }, [])
 
+  //Lisätään henkilö luetteloon
   const addPerson = (event) =>{
     event.preventDefault()
     const nimiLoytyy = persons.some(person => person.name.toLowerCase() == newName.toLowerCase())
     const numeroLoytyy = persons.some(person => person.number == newNumber)
 
+    // Jos Numero on jo jollain, niin poistutaan metodista
     if(numeroLoytyy) {
       window.alert(`${newNumber} on jo jollain henkilöllä???`)
       return
     }
 
+    //Jos nimi on jollain, niin kysytään haluaako päivittää numeron uudempaan
     if(nimiLoytyy) {
       const vaihdetaanko = window.confirm(`${newName} on jo puhelinluettelossa, vaihdetaanko uusi numero vanhan tilalle?`)
       if(vaihdetaanko){
@@ -84,12 +91,28 @@ const App = () => {
         
         numberService
           .change(person.id, changedPerson)
-          .then(data => setPersons(persons.map(p => p.id !== person.id ? p : data)))
+          .then(data => {
+            setPersons(persons.map(p => p.id !== person.id ? p : data))
+            setNewName('')
+            setNewNumber('')
+            setSuccessMessage(`Number changed`)
+            setTimeout(() => {
+            setSuccessMessage(null)
+            }, 5000)
+          })
+          .catch(() => {
+            setErrorMessage(`Information of ${person.name} has already been deleted from server`)
+            setPersons(persons.filter(p => p.id !== person.id))
+            setTimeout(() => {
+              setErrorMessage(null)
+            }, 5000)
+          }
+          )
       }
       return
     }
 
-    console.log("tääl ollaan")
+    // Lisätään henkilö ja Numero
       const personObject = {
         name: newName,
         number: newNumber
@@ -100,23 +123,34 @@ const App = () => {
           setPersons(persons.concat(data))
           setNewName('')
           setNewNumber('')
+          setSuccessMessage(`Added ${newName}`)
+          setTimeout(() => {
+            setSuccessMessage(null)
+          }, 5000)
         }).catch( error => {
           console.log('Serveri pois päältä?: \n', error)
         })
   }
 
+  //Poistetaan henkilö luettelosta
   const deletePerson = id => {
-    console.log("klikattu")
-    const poistetaanko = window.confirm(`Delete ${persons.find(p => p.id === id).name}`)
+    const person = persons.find(p => p.id === id)
+    const poistetaanko = window.confirm(`Delete ${person.name}`)
     if(poistetaanko){ 
        numberService.deleteFromServer(id)
         .then(data => setPersons(persons.filter(p => p.id !== data.id)))
+        setSuccessMessage(`Deleted ${person.name}`)
+          setTimeout(() => {
+            setSuccessMessage(null)
+          }, 5000)
     }
   }
 
   return (
     <div>
       <h2>Phonebook</h2>
+      <Notification message={successMessage} vari='green'/>
+      <Notification message={errorMessage} vari='red'/>
       <Filter value={filter} onChange={handleChangeFilter}/>
       <h2>add a new</h2>
       <Form onSubmit={addPerson} valueName={newName} valueNumber={newNumber} onChangeName={handleChangeName} onChangeNumber={handleChangeNumber}/>
