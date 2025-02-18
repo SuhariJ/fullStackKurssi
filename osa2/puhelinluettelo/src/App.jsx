@@ -1,4 +1,4 @@
-import axios from 'axios'
+import numberService from './services/numbersservices'
 import { useState, useEffect } from 'react'
 
 const Filter = ({value, onChange}) => (
@@ -21,17 +21,20 @@ const Form = ({onSubmit, valueName, valueNumber, onChangeName, onChangeNumber}) 
       </form>
 )
 
-const Persons = ({personsToShow}) =>(
+const Persons = ({personsToShow, onClick}) =>(
   <>
   {personsToShow.map(
-    person => <Person key={person.name} person={person}/>
+    person => <Person key={person.id} person={person} onClick={onClick}/>
     )}
   </>
 )
 
-const Person = ({person}) =>(
-  <p>{person.name} {person.number}</p>
-)
+const Person = ({person, onClick}) =>{
+  return(
+    <>
+      <p>{person.name} {person.number} <button onClick={() => onClick(person.id)}>delete</button></p>
+    </>
+)}
 
 
 const App = () => {
@@ -41,17 +44,12 @@ const App = () => {
   const [filter, setNewFilter] = useState('')
   const [showAll, setAll] = useState(true)
 
-  useEffect(() =>{
-    axios.get('http://localhost:3001/persons')
-    .then(response => {
-      setPersons(response.data)
-    })
-  }, [])
-
+  //Ihmiset jotka näkyy Numbers otsikon alla
   const personsToShow = showAll
     ? persons
     : persons.filter((person) => person.name.toLowerCase().includes(filter))
 
+  // Funktiot jotka kutsutaan kun kirjoitetaan syötekenttiin
   const handleChangeName = (event) => setNewName(event.target.value)
   const handleChangeNumber = (event) => setNewNumber(event.target.value)
   const handleChangeFilter = (event) => { 
@@ -60,33 +58,60 @@ const App = () => {
     setAll(newValue == '')
   }
 
+  useEffect(() =>{
+    numberService
+    .getFromServer()
+    .then(data => {
+      setPersons(data)
+    })
+  }, [])
+
   const addPerson = (event) =>{
     event.preventDefault()
-    const voikoLisataNimi = persons.some(person => person.name == newName)
-    const voikoLisataNumero = persons.some(person => person.number == newNumber)
+    const nimiLoytyy = persons.some(person => person.name.toLowerCase() == newName.toLowerCase())
+    const numeroLoytyy = persons.some(person => person.number == newNumber)
 
-    if(voikoLisataNimi) {
-      window.alert(`${newName} on jo lisätty`)
-      return
-    }
-    if(voikoLisataNumero) {
+    if(numeroLoytyy) {
       window.alert(`${newNumber} on jo jollain henkilöllä???`)
       return
     }
 
-    const personObject = {
-      name: newName,
-      number: newNumber
+    if(nimiLoytyy) {
+      const vaihdetaanko = window.confirm(`${newName} on jo puhelinluettelossa, vaihdetaanko uusi numero vanhan tilalle?`)
+      if(vaihdetaanko){
+        const person = persons.find(p => p.name.toLowerCase() == newName.toLowerCase())
+        const changedPerson = {...person, number: newNumber}
+        
+        numberService
+          .change(person.id, changedPerson)
+          .then(data => setPersons(persons.map(p => p.id !== person.id ? p : data)))
+      }
+      return
     }
-    axios.post("http://localhost:3001/persons", personObject)
-      .then( response => response.data)
-      .then( data => {
-        setPersons(persons.concat(data))
-        setNewName('')
-        setNewNumber('')
-      }).catch( error => {
-        console.log('Serveri pois päältä?: \n', error)
-      })
+
+    console.log("tääl ollaan")
+      const personObject = {
+        name: newName,
+        number: newNumber
+      }
+      numberService
+        .addToServer(personObject)
+        .then( data => {
+          setPersons(persons.concat(data))
+          setNewName('')
+          setNewNumber('')
+        }).catch( error => {
+          console.log('Serveri pois päältä?: \n', error)
+        })
+  }
+
+  const deletePerson = id => {
+    console.log("klikattu")
+    const poistetaanko = window.confirm(`Delete ${persons.find(p => p.id === id).name}`)
+    if(poistetaanko){ 
+       numberService.deleteFromServer(id)
+        .then(data => setPersons(persons.filter(p => p.id !== data.id)))
+    }
   }
 
   return (
@@ -96,7 +121,7 @@ const App = () => {
       <h2>add a new</h2>
       <Form onSubmit={addPerson} valueName={newName} valueNumber={newNumber} onChangeName={handleChangeName} onChangeNumber={handleChangeNumber}/>
       <h2>Numbers</h2>
-      <Persons personsToShow={personsToShow}/>
+      <Persons personsToShow={personsToShow} onClick={deletePerson}/>
     </div>
   )
 
