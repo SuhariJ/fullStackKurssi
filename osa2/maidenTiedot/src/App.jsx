@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 
+const api_key = import.meta.env.VITE_SOME_KEY
+
 const Search = ({value, onChange}) =>{
   return(
     <form>
@@ -9,7 +11,9 @@ const Search = ({value, onChange}) =>{
   )
 }
 
-const Countries = ({showing, names, countries} ) =>{
+const Countries = ({showing, names, countries, handleClick} ) =>{
+  
+
   if(showing === 3){
     return (
       <div>
@@ -20,7 +24,10 @@ const Countries = ({showing, names, countries} ) =>{
   if(showing === 2){
     return (
       <>
-        {names.map(c => <li key={c}>{c}</li>)}
+        {names.map(name => {
+          const curCountry = countries.find(c => c.name.common === name)
+          return( <li key={name}>{name} <button onClick={() => handleClick(curCountry)}>show</button></li>)
+        })}
       </>
     )
   }
@@ -36,13 +43,12 @@ const Countries = ({showing, names, countries} ) =>{
 
 const Country = ({country}) =>{
 
+  //Tehään kieli objectista array jotta voidaan mapata
   const lan = []
   Object.keys(country.languages).forEach( key => {
     lan.push(country.languages[key])
   }
   )
-  console.log(lan)
-
   return(
     <div>
       <h1>{country.name.common}</h1>
@@ -54,17 +60,67 @@ const Country = ({country}) =>{
       </ul>
       <br/>
       <img src={country.flags.png} alt={country.flags.alt} ></img>
+      <Weather country={country}/>
     </div>
   )
 
 }
 
+const Weather = ({country}) => {
+
+  const city = country.capital
+  const limit = 1
+  const [lat, setLat] = useState(null)
+  const [lon, setLon] = useState(null)
+  const [weather, setWeather] = useState(null)
+  const [iconId, setIcon] = useState(null)
+
+  useEffect(() =>{
+    const cResponse = axios.get(`http://api.openweathermap.org/geo/1.0/direct?q=${city}&limit=${limit}&appid=${api_key}`)
+    const coordsData = cResponse.then(response => response.data)
+    coordsData.then(result => {
+      setLat(result[0].lat)
+      setLon(result[0].lon)
+    }) 
+  }, [city])
+
+  useEffect(() =>{
+    if(lat && lon){
+      const wResponse = axios.get(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&units=metric&appid=${api_key}`)
+      const weatherData = wResponse.then(response => response.data)
+      weatherData.then(result => {
+        setWeather(result)
+        setIcon(result.weather[0].icon)
+      })
+    }
+    
+  }, [lat, lon])
+  console.log(iconId, 'haha')
+
+  
+  if(lat && lon && weather){
+    return(
+      <div>
+        <h1>Weather in {city}</h1>
+        <p>Temperature {weather.main.temp} Celsius</p>
+        <img src={`https://openweathermap.org/img/wn/${iconId}@2x.png`}></img>
+        <p>Wind speed {weather.wind.speed}</p>
+      </div>
+    )
+  }
+  return 
+}
+
 function App() {
-  const [value, setValue] = useState('')
+  const[value, setValue] = useState('')
   const[countries, setCountries] = useState([])
   const[names, setNames] = useState([])
   const[namesToShow, setNamesToShow] = useState([])
   const[showing, setShowing] = useState(3)
+  const[showOne, setShowOne] = useState(false)
+  const[countryToShow, seCountryToShow] = useState(null)
+
+
 
   useEffect(() => {
     const request = axios.get('https://studies.cs.helsinki.fi/restcountries/api/all')
@@ -80,6 +136,8 @@ function App() {
     setValue(newValue)
     const newNames = names.filter(n => n.toLowerCase().includes(newValue.toLowerCase()))
     setNamesToShow(newNames)
+    setShowOne(false)
+    
 
     if(newNames.length > 10) {
       setShowing(3)
@@ -93,10 +151,25 @@ function App() {
 
   }
 
+  const handleClick = (country) => {
+    seCountryToShow(country)
+    setShowOne(true)
+  }
+
+  if(showOne){
+    return(
+      <div>
+        <Search value={value} onChange={handleChange}/>
+        <Country country={countryToShow}/>
+      </div>
+    )
+  }
+
   return (
     <div>
       <Search value={value} onChange={handleChange}/>
-      <Countries showing={showing} names={namesToShow} countries={countries}/>
+      <Countries showing={showing} names={namesToShow}
+         countries={countries} handleClick={handleClick}/>
     </div>
   )
 }
